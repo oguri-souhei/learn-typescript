@@ -1225,4 +1225,349 @@ list[100]; // error
 - 使用する場面
   - 非同期プログラミングをする時に、`Promise.all()`を使用する
   - その時に使う
-  - 
+
+# 列挙型（enum）
+```typescript
+enum Position {
+  Top, // 0
+  Right, // 1 
+  Bottom, // 2
+  Left // 3
+}
+```
+
+- 値を代入できる
+```typescript
+enum Position {
+  Top = 1, // 1
+  Right, // 2
+  Bottom, // 3
+  Left, // 4
+}
+```
+
+- 文字列も使える
+
+```typescript
+enum Direction {
+  Up = "UP",
+  Down = "DOWN",
+  Left = "LEFT",
+  Right = "RIGHT",
+}
+```
+
+## 列挙型の問題点
+- 数値の列挙型には数値なら何でも代入可能
+
+```typescript
+enum ZeroOrOne {
+  Zero = 0,
+  One = 1,
+}
+const zeroOrOne: ZeroOrOne = 9; // コンパイルエラーは起きません！
+```
+
+- メンバーにない値へのアクセス
+
+```typescript
+enum ZeroOrOne {
+  Zero = 0,
+  One = 1,
+}
+ 
+console.log(ZeroOrOne[0]); // これは期待どおり
+console.log(ZeroOrOne[9]); // これはコンパイルエラーになってほしいところ…
+```
+
+- 文字列列挙型だけ公称型
+
+```typescript
+enum StringEnum {
+  Foo = "foo",
+}
+const foo1: StringEnum = StringEnum.Foo; // コンパイル通る
+const foo2: StringEnum = "foo"; // コンパイルエラーになる
+```
+
+## 列挙型の代替案
+
+### ユニオン型
+
+```typescript
+type YesNo = "yes" | "no";
+ 
+function toJapanese(yesno: YesNo) {
+  switch (yesno) {
+    case "yes":
+      return "はい";
+    case "no":
+      return "いいえ";
+  }
+}
+```
+
+- シンボルを使った例
+
+```typescript
+const yes = Symbol();
+const no = Symbol();
+type YesNo = typeof yes | typeof no;
+ 
+function toJapanese(yesno: YesNo) {
+  switch (yesno) {
+    case yes:
+      return "はい";
+    case no:
+      return "いいえ";
+  }
+}
+```
+
+### オブジェクトリテラルを使用
+
+```typescript
+const Position = {
+  Top: 0,
+  Right: 1,
+  Bottom: 2,
+  Left: 3,
+} as const;
+ 
+type Position = typeof Position[keyof typeof Position];
+// 上は type Position = 0 | 1 | 2 | 3 と同じ意味になります
+ 
+function toJapanese(position: Position) {
+  switch (position) {
+    case Position.Top:
+      return "上";
+    case Position.Right:
+      return "右";
+    case Position.Bottom:
+      return "下";
+    case Position.Left:
+      return "左";
+  }
+}
+```
+
+# ユニオン型
+```typescript
+let numberOrUndefined: number | undefined;
+
+type ErrorCode =
+  | 400
+  | 401
+  | 402
+  | 403
+  | 404
+  | 405;
+  
+// array
+type List = (string | number)[];
+```
+
+- `string | null` がnullかどうか判定したい時はtsの絞り込み（narrowing）を使用
+
+```typescript
+const maybeUserId: string | null = localStorage.getItem("userId");
+ 
+const userId: string = maybeUserId; // nullかもしれないので、代入できない。
+ 
+if (typeof maybeUserId === "string") {
+  const userId: string = maybeUserId; // この分岐内では文字列型に絞り込まれるため、代入できる。
+}
+```
+
+## 判別可能なユニオン型
+- 各オブジェクトで識別可能なプロパティをもつこと
+  - 例ではtypeがstring型ではなくて、リテラル型になっている
+- このプロパティを`ディスクリミネータ`という
+
+
+```typescript
+type UploadStatus = InProgress | Success | Failure;
+type InProgress = { type: "InProgress"; progress: number };
+type Success = { type: "Success" };
+type Failure = { type: "Failure"; error: Error };
+
+function printStatus(status: UploadStatus) {
+  switch (status.type) {
+    case "InProgress":
+      console.log(`アップロード中:${status.progress}%`);
+      break;
+    case "Success":
+      console.log("アップロード成功", status);
+      break;
+    case "Failure":
+      console.log(`アップロード失敗:${status.error.message}`);
+      break;
+    default:
+      console.log("不正なステータス: ", status);
+  }
+}
+```
+
+- ディスクリミネータにはリテラル型と`null`,`undefined`が使える
+
+# インターセクション型
+- ユニオン型が **どれか** を意味するならインターセクション型は **どれも**
+- 合体したいオブジェクト同士を `&`で列挙
+
+```typescript
+type Never = string & number;
+const n: Never = "2"; // error
+```
+
+- インターセクション型の使い所
+- 巨大なオブジェクトがあるとする
+
+```typescript
+type Parameter = {
+  id: string;
+  index?: number;
+  active: boolean;
+  balance: number;
+  photo?: string;
+  age?: number;
+  surname: string;
+  givenName: string;
+  company?: string;
+  email: string;
+  phoneNumber?: string;
+  address?: string;
+  // ...
+};
+```
+
+- ユーティリティ型の`Required<T>`と`Partial<T>`を使ってわかりやすくする
+- 必須とオプションに分割
+
+```typescript
+type Mandatory = {
+  id: string;
+  active: boolean;
+  balance: number;
+  surname: string;
+  givenName: string;
+  email: string;
+};
+ 
+type Optional = {
+  index: number;
+  photo: string;
+  age: number;
+  company: string;
+  phoneNumber: string;
+  address: string;
+};
+```
+
+- `Required<T>` `Partial<T>`を使用
+
+```typescript
+type Mandatory = Required<{
+  id: string;
+  active: boolean;
+  balance: number;
+  surname: string;
+  givenName: string;
+  email: string;
+}>;
+ 
+type Optional = Partial<{
+  index: number;
+  photo: string;
+  age: number;
+  company: string;
+  phoneNumber: string;
+  address: string;
+}>;
+```
+
+- 合体
+
+```typescript
+type Parameter = Mandatory & Optional;
+```
+
+# 型エイリアス
+
+```typescript
+type Alias = string|number;
+const value: Alias = 1; // ok
+```
+
+# 型アサーション(as)
+- コンパイラの型推論を上書きする
+- `as`を使った書き方
+
+```typescript
+const value: string | number = "this is a string";
+const strLength: number = (value as string).length;
+```
+
+- アングルブラケット構文を使った書き方
+
+```typescript
+const value: string | number = "this is a string.";
+const strLength: number = (<string>value).length;
+```
+
+- `number`を`string`にする型アサーションはコンパイルエラー
+
+```typescript
+const num = 1;
+const str = num as string; // error
+```
+- `unknown`型を経由すれば突破できるｗ
+
+```typescript
+const num = 1;
+const str: string = num as unknown as string; // ok
+```
+
+# constアサーション(as const)
+
+- オブジェクトリテラルの最後に`as const`を指定すれば、プロパティが`readonly`で指定した事と同様になる
+
+```typescript
+const pikachu = {
+  name: "pikachu",
+  no: 25,
+  genre: "mouse pokémon",
+  height: 0.4,
+  weight: 6.0,
+} as const;
+
+pikachu.name = "raichu"; // error
+```
+
+- const assertionは再帰的にreadonlyにできる
+
+```typescript
+const america = {
+  name: "North American Continent",
+  canada: {
+    name: "Republic of Canada",
+    capitalCity: "Ottawa",
+  },
+  us: {
+    name: "United States of America",
+    capitalCity: "Washington, D.C.",
+  },
+  mexico: {
+    name: "United Mexican States",
+    capitalCity: "Mexico City",
+  },
+} as const;
+
+america.name = "African Continent"; // error
+// error
+america.canada = {
+  name: "Republic of Côte d'Ivoire",
+  capitalCity: "Yamoussoukro",
+};
+america.canada.name = "Republic of Côte d'Ivoire"; // error
+```
+
