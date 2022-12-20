@@ -1571,3 +1571,332 @@ america.canada = {
 america.canada.name = "Republic of Côte d'Ivoire"; // error
 ```
 
+## definite assignment assertion
+- コンパイラオプション: strictNullChecks
+  - 初期化されていない変数を参照した際にエラーを出す
+
+## strictPropertyInitialization
+- TypeScriptでは次のコンパイラオプションの両方がtrueのとき、クラスのプロパティが初期化されていないとエラーを出します。
+  - strictNullChecks
+  - strictPropertyInitialization
+- tsはプロパティ定義またはconstructorでプロパティが初期化されているか判断する
+
+```typescript
+class Foo {
+  num1: number = 1; // 初期化している
+  num2: number;
+  num3: number;
+ 
+  constructor() {
+    this.num2 = 1; // 初期化している
+    this.initNum3(); // num3を初期化している
+  }
+ 
+  initNum3() {
+    this.num3 = 1;
+  }
+}
+```
+
+## definite assignment assertion
+- 変数やプロパティの初期化が確実に行われていることをコンパイラに伝えるには、definite assignment assertionを使う
+
+```typescript
+let num!: number;
+//     ^definite assignment assertion
+initNum();
+console.log(num * 2); // エラーにならない
+function initNum() {
+  num = 2;
+}
+```
+
+## 非Nullアサーション(non-null assertion)
+```typescript
+let num: number;
+initNum();
+console.log(num! * 2); // エラーにならない
+//             ^非Nullアサーション
+function initNum() {
+  num = 2;
+}
+```
+
+- **definite assignment assertionとnon-null assertionはなるべく使わないほうが良い**
+
+# typeof
+
+```typescript
+typeof "foo" // string
+// nullの場合注意！
+typeof null // object
+```
+
+- やばい実装
+
+```typescript
+// まずい実装
+function isObject(value) {
+  return typeof value === "object"; // valueがnullになる場合を考慮していない
+}
+ 
+isObject(null); // 戻り値がtrueになってしまう
+```
+
+- nullを考慮した実装
+
+```typescript
+function isObject(value) {
+  return value !== null && typeof value === "object";
+}
+```
+
+## 配列を判別
+
+- Array.isArray()を使う
+- typeofではobjectになる
+
+# 等価
+
+## 厳密等価演算子（===）
+- 型と値が等しいこと
+
+```javascript
+null === undefined // false
+0 === 0n // false
+0 === "0" // false
+```
+
+## 等価演算子（==）
+
+- 型が異なる場合は変換を試みる
+- その結果が等しいか？
+
+```javascript
+null == undefined // true
+0 == 0n // true
+0 == "0" // true
+0 == "" // true
+0 == false // true
+"0" == false // true
+"" == false // true
+```
+
+## 注意
+
+```typescript
+NaN == NaN // false
+Symbol("foo") == Symbol("foo") // false
+{} == {} // false
+```
+
+## truthy, falsyな値
+- jsでは真偽値ではなくてもifの対象にできる
+
+- falsyな値
+
+![picture 2](images/e6397a9de66e3540e5fd5b946c1193b81296b6ef4e3351eac26dd000dd3fd18d.png)  
+
+- 注意点
+
+```typescript
+const array = [null, 3, 0, null, 1, 2];
+// nullだけを取り除くつもりだった！
+console.log(array.filter((n) => n));
+```
+
+- eslintにifブロックでboolean以外が渡されると怒られるオプションある
+  - strict-boolean-expression
+
+# スコープ
+
+## グローバルスコープ
+- jsではwindowと呼ばれるグローバルオブジェクトがある
+- グローバル変数はwindowのプロパティ
+- グローバル変数へのアクセスはwindowを省略してかける
+
+```typescript
+Date === window.Date; //=> true
+console === window.console; //=> true
+```
+
+- local scope以外でvarで変数宣言するとグローバル変数になるｗ
+- (jsでは)local変数を定義した場合にlet, constを忘れた場合はグローバル変数になるｗ
+
+# switch
+- switchでは厳密等価
+- break必須
+- caseの変数スコープは無い
+
+```typescript
+let x = 1;
+switch (x) {
+  case 1:
+    const sameName = "A";
+    break;
+  case 2:
+    const sameName = "B"; // error
+    break;
+}
+```
+
+- caseに変数スコープを作る
+
+```typescript
+let x = 1;
+switch (x) {
+  case 1: {
+    const sameName = "A";
+    break;
+  }
+  case 2: {
+    const sameName = "B";
+    break;
+  }
+}
+```
+
+# 例外処理
+```javascript
+try {
+  throw new Error("something wrong");
+} catch (e) {
+  // something wrong
+  console.log(e.message);
+}
+```
+
+- throwは何でも投げれるが、アンチパターン
+
+```typescript
+throw "foobar";
+```
+
+- catchの変数の型はany
+
+```typescript
+try {
+  // ...
+} catch (e) { // any
+  // ...
+}
+```
+
+- TypeScriptのコンパイラーオプションのuseUnknownInCatchVariablesを有効にすると、catchの変数の型がunknown型になる
+- 「どんな値がthrowされるか分からない」ことを型として正確に表現できる
+
+- finally
+  - 例外発生の有無に関わらず実行
+
+# never型
+- 値を持たない型
+- 何も代入できない
+- never型は代入できる
+
+```typescript
+let foo never;
+foo = 1; // error
+foo = 1 as never;
+```
+
+- 何にでも代入できる
+
+```typescript
+const foo: never = 1;
+const a: string = foo;
+const b: string[] = foo;
+```
+
+## 使い所
+
+- 必ず例外が発生する関数
+```typescript
+function throwError(): never {
+  throw new Error();
+}
+```
+
+- 終了しない関数
+
+```typescript
+function forever(): never {
+  while(true) {}
+}
+```
+
+- 作り得ない値
+  - 数値と文字列のインターセクション型はneverになる
+
+```typescript
+type numString = number & string; // never
+```
+
+## voidとの違い
+
+- 戻り値がない点は同じ
+- voidは関数が最後まで処理されるという意味
+
+## neverを使った網羅性チェック
+- 網羅性の無い分岐でnever型を使う
+
+```typescript
+type Extension = "js" | "ts" | "json";
+
+function print(ext: Extension) {
+  switch (ext) {
+    case "js":
+      console.log("JavaScript");
+      break;
+    case "ts":
+      console.log("TypeScript");
+    // case "json":
+    //   console.log("JSON")
+    //   break;
+    default:
+      const check: never = ext;
+      break;
+  }
+}
+```
+
+- 網羅性チェック用の例外クラスも推奨
+
+```typescript
+class ExhaustiveError extends Error {
+  constructor(value: never, message = `Unsupported type: ${value}`) {
+    super(message);
+  }
+}
+```
+
+```typescript
+function printLang(ext: Extension): void {
+  switch (ext) {
+    case "js":
+      console.log("JavaScript");
+      break;
+    case "ts":
+      console.log("TypeScript");
+      break;
+    default:
+      throw new ExhaustiveError(ext);
+  }
+}
+```
+
+- この実装のメリット
+  1. noUnusedLocalsに対応
+  2. 実行時を意識したコードに?(よくわからｎ)
+
+1. noUnusedLocalsに対応
+- 下の実装ではコンパイラオプションのnoUnusedLocalsで叱られる
+  
+```typescript
+default:
+      const check: never = ext; // 'exhaustivenessCheck' is declared but its value is never read.
+      break;
+```
+
+2. よくわからないので
+https://typescriptbook.jp/reference/statements/never
+
